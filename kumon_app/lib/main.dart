@@ -45,8 +45,6 @@ class _WebViewScreenState extends State<WebViewScreen> {
   InAppWebViewController? webViewController;
   bool isLoading = true;
   bool canGoBack = false;
-  bool showZoomControls = false;
-  double zoomLevel = 1.0;
 
   Future<bool> _onWillPop() async {
     if (await webViewController?.canGoBack() ?? false) {
@@ -56,42 +54,19 @@ class _WebViewScreenState extends State<WebViewScreen> {
     return true;
   }
 
-  void adjustZoom(bool increase) {
-    setState(() {
-      if (increase && zoomLevel < 3.0) {
-        zoomLevel += 0.1;
-      } else if (!increase && zoomLevel > 0.5) {
-        zoomLevel -= 0.1;
-      }
-      webViewController?.evaluateJavascript(
-        source: 'document.body.style.zoom = "$zoomLevel"',
-      );
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     return WillPopScope(
       onWillPop: _onWillPop,
       child: Scaffold(
         appBar: AppBar(
-          title: GestureDetector(
-            onTap: () => setState(() => showZoomControls = !showZoomControls),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Image.asset('assets/logo.png', height: 32),
-                const SizedBox(width: 8),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: const [
-                    Text('Beelingua', style: TextStyle(fontSize: 16)),
-                    Text('Standalone', style: TextStyle(fontSize: 16)),
-                  ],
-                ),
-              ],
-            ),
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Image.asset('assets/logo.png', height: 32),
+              const SizedBox(width: 8),
+              const Text('Kumon App', style: TextStyle(fontSize: 16)),
+            ],
           ),
           actions: [
             if (canGoBack)
@@ -148,30 +123,6 @@ class _WebViewScreenState extends State<WebViewScreen> {
               },
             ),
             if (isLoading) const Center(child: CircularProgressIndicator()),
-            if (showZoomControls)
-              Positioned(
-                top: 8,
-                left: 8,
-                child: Card(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.remove),
-                          onPressed: () => adjustZoom(false),
-                        ),
-                        Text('${(zoomLevel * 100).toInt()}%'),
-                        IconButton(
-                          icon: const Icon(Icons.add),
-                          onPressed: () => adjustZoom(true),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
           ],
         ),
       ),
