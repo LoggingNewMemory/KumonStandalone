@@ -1,3 +1,4 @@
+import 'dart:collection'; // Needed for UnmodifiableListView
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
@@ -56,6 +57,32 @@ class _WebViewScreenState extends State<WebViewScreen> {
   bool isLoading = true;
   bool canGoBack = false;
 
+  // --- JAVASCRIPT SPOOFING LOGIC ---
+  // This script listens for all pointer events and forces the browser
+  // to report them as 'mouse' instead of 'touch'.
+  final String spoofInputJs = """
+    (function() {
+        console.log("Spoofing Mouse Input Active");
+        
+        const eventTypes = [
+            'pointerdown', 'pointermove', 'pointerup', 
+            'pointerover', 'pointerout', 'pointerenter', 'pointerleave',
+            'gotpointercapture', 'lostpointercapture'
+        ];
+
+        eventTypes.forEach(function(type) {
+            window.addEventListener(type, function(event) {
+                // Intercept the event and force pointerType to 'mouse'
+                Object.defineProperty(event, 'pointerType', {
+                    get: function() { return 'mouse'; }, // Spoof as mouse
+                    configurable: true
+                });
+            }, { capture: true }); // Capture phase ensures we hit it before the app does
+        });
+    })();
+  """;
+  // ---------------------------------
+
   Future<bool> _onWillPop() async {
     if (await webViewController?.canGoBack() ?? false) {
       webViewController?.goBack();
@@ -73,7 +100,8 @@ class _WebViewScreenState extends State<WebViewScreen> {
           title: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Image.asset('assets/logo.png', height: 32),
+              // Ensure assets exist or handle error if missing
+              // Image.asset('assets/logo.png', height: 32),
               const SizedBox(width: 8),
               const Text('Kumon App', style: TextStyle(fontSize: 16)),
             ],
@@ -96,14 +124,31 @@ class _WebViewScreenState extends State<WebViewScreen> {
               initialUrlRequest: URLRequest(
                 url: WebUri('https://kumonapp.digital.kumon.com/id/index.html'),
               ),
+              // Inject the script at the very start of the document load
+              initialUserScripts: UnmodifiableListView<UserScript>([
+                UserScript(
+                  source: spoofInputJs,
+                  injectionTime: UserScriptInjectionTime.AT_DOCUMENT_START,
+                ),
+              ]),
               initialOptions: InAppWebViewGroupOptions(
                 crossPlatform: InAppWebViewOptions(
+                  // Keeping your iPad UA is fine, but sometimes switching to a Desktop UA
+                  // helps further if the JS spoof alone isn't enough.
                   userAgent:
                       'Mozilla/5.0 (iPad; CPU OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1',
                   javaScriptEnabled: true,
                   mediaPlaybackRequiresUserGesture: false,
+                  // Tapping usually delays slightly on mobile; disabling this might make drawing snappier
+                  disableVerticalScroll: false,
+                  preferredContentMode: UserPreferredContentMode.RECOMMENDED,
                 ),
-                android: AndroidInAppWebViewOptions(useHybridComposition: true),
+                android: AndroidInAppWebViewOptions(
+                  useHybridComposition: true,
+                  // Ensure scale is correct so "mouse" hits the right coordinates
+                  loadWithOverviewMode: true,
+                  useWideViewPort: true,
+                ),
                 ios: IOSInAppWebViewOptions(allowsInlineMediaPlayback: true),
               ),
               onWebViewCreated: (controller) {
