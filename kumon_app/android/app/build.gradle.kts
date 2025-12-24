@@ -16,7 +16,8 @@ android {
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_17.toString()
+        // FIXED: Use simple string "17" instead of JavaVersion.toString()
+        jvmTarget = "17"
     }
 
     defaultConfig {
@@ -28,6 +29,11 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        
+        // FIXED: Correct Kotlin DSL syntax for abiFilters
+        ndk {
+            abiFilters += listOf("armeabi-v7a", "arm64-v8a")
+        }
     }
 
     buildTypes {
