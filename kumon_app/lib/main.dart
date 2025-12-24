@@ -54,6 +54,9 @@ class WebViewScreen extends StatefulWidget {
 class _WebViewScreenState extends State<WebViewScreen> {
   InAppWebViewController? webViewController;
   bool isLoading = true;
+
+  // Note: "canGoBack" variable is no longer strictly needed for UI
+  // since the back button was removed, but it is kept for logic consistency.
   bool canGoBack = false;
 
   Future<bool> _onWillPop() async {
@@ -69,27 +72,7 @@ class _WebViewScreenState extends State<WebViewScreen> {
     return WillPopScope(
       onWillPop: _onWillPop,
       child: Scaffold(
-        appBar: AppBar(
-          title: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Image.asset('assets/logo.png', height: 32),
-              const SizedBox(width: 8),
-              const Text('Kumon App', style: TextStyle(fontSize: 16)),
-            ],
-          ),
-          actions: [
-            if (canGoBack)
-              IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: () => webViewController?.goBack(),
-              ),
-            IconButton(
-              icon: const Icon(Icons.refresh),
-              onPressed: () => webViewController?.reload(),
-            ),
-          ],
-        ),
+        // AppBar removed here
         body: Stack(
           children: [
             InAppWebView(
