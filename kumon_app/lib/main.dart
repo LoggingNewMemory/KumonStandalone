@@ -1,4 +1,4 @@
-import 'dart:collection'; // Needed for UnmodifiableListView
+import 'dart:collection';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
@@ -7,7 +7,6 @@ import 'package:permission_handler/permission_handler.dart';
 Future main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 1. Force Portrait Mode (Failsafe)
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
@@ -16,7 +15,6 @@ Future main() async {
   await Permission.camera.request();
   await Permission.microphone.request();
 
-  // 2. Hide Status Bar (Immersive Mode)
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
   runApp(const MyApp());
@@ -57,9 +55,6 @@ class _WebViewScreenState extends State<WebViewScreen> {
   bool isLoading = true;
   bool canGoBack = false;
 
-  // --- JAVASCRIPT SPOOFING LOGIC ---
-  // This script listens for all pointer events and forces the browser
-  // to report them as 'mouse' instead of 'touch'.
   final String spoofInputJs = """
     (function() {
         console.log("Spoofing Mouse Input Active");
@@ -72,16 +67,14 @@ class _WebViewScreenState extends State<WebViewScreen> {
 
         eventTypes.forEach(function(type) {
             window.addEventListener(type, function(event) {
-                // Intercept the event and force pointerType to 'mouse'
                 Object.defineProperty(event, 'pointerType', {
-                    get: function() { return 'mouse'; }, // Spoof as mouse
+                    get: function() { return 'mouse'; },
                     configurable: true
                 });
-            }, { capture: true }); // Capture phase ensures we hit it before the app does
+            }, { capture: true });
         });
     })();
   """;
-  // ---------------------------------
 
   Future<bool> _onWillPop() async {
     if (await webViewController?.canGoBack() ?? false) {
@@ -96,35 +89,12 @@ class _WebViewScreenState extends State<WebViewScreen> {
     return WillPopScope(
       onWillPop: _onWillPop,
       child: Scaffold(
-        appBar: AppBar(
-          title: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Ensure assets exist or handle error if missing
-              // Image.asset('assets/logo.png', height: 32),
-              const SizedBox(width: 8),
-              const Text('Kumon App', style: TextStyle(fontSize: 16)),
-            ],
-          ),
-          actions: [
-            if (canGoBack)
-              IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: () => webViewController?.goBack(),
-              ),
-            IconButton(
-              icon: const Icon(Icons.refresh),
-              onPressed: () => webViewController?.reload(),
-            ),
-          ],
-        ),
         body: Stack(
           children: [
             InAppWebView(
               initialUrlRequest: URLRequest(
                 url: WebUri('https://kumonapp.digital.kumon.com/id/index.html'),
               ),
-              // Inject the script at the very start of the document load
               initialUserScripts: UnmodifiableListView<UserScript>([
                 UserScript(
                   source: spoofInputJs,
@@ -133,19 +103,15 @@ class _WebViewScreenState extends State<WebViewScreen> {
               ]),
               initialOptions: InAppWebViewGroupOptions(
                 crossPlatform: InAppWebViewOptions(
-                  // Keeping your iPad UA is fine, but sometimes switching to a Desktop UA
-                  // helps further if the JS spoof alone isn't enough.
                   userAgent:
                       'Mozilla/5.0 (iPad; CPU OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1',
                   javaScriptEnabled: true,
                   mediaPlaybackRequiresUserGesture: false,
-                  // Tapping usually delays slightly on mobile; disabling this might make drawing snappier
                   disableVerticalScroll: false,
                   preferredContentMode: UserPreferredContentMode.RECOMMENDED,
                 ),
                 android: AndroidInAppWebViewOptions(
                   useHybridComposition: true,
-                  // Ensure scale is correct so "mouse" hits the right coordinates
                   loadWithOverviewMode: true,
                   useWideViewPort: true,
                 ),
