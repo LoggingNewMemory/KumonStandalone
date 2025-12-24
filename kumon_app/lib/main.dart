@@ -5,9 +5,19 @@ import 'package:permission_handler/permission_handler.dart';
 
 Future main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // 1. Force Portrait Mode (Failsafe)
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
+
   await Permission.camera.request();
   await Permission.microphone.request();
+
+  // 2. Hide Status Bar (Immersive Mode)
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+
   runApp(const MyApp());
 }
 
