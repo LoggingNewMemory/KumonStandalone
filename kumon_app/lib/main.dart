@@ -1,4 +1,3 @@
-import 'dart:collection';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
@@ -7,6 +6,7 @@ import 'package:permission_handler/permission_handler.dart';
 Future main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // 1. Force Portrait Mode (Failsafe)
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
@@ -15,6 +15,7 @@ Future main() async {
   await Permission.camera.request();
   await Permission.microphone.request();
 
+  // 2. Hide Status Bar (Immersive Mode)
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
   runApp(const MyApp());
@@ -55,27 +56,6 @@ class _WebViewScreenState extends State<WebViewScreen> {
   bool isLoading = true;
   bool canGoBack = false;
 
-  final String spoofInputJs = """
-    (function() {
-        console.log("Spoofing Mouse Input Active");
-        
-        const eventTypes = [
-            'pointerdown', 'pointermove', 'pointerup', 
-            'pointerover', 'pointerout', 'pointerenter', 'pointerleave',
-            'gotpointercapture', 'lostpointercapture'
-        ];
-
-        eventTypes.forEach(function(type) {
-            window.addEventListener(type, function(event) {
-                Object.defineProperty(event, 'pointerType', {
-                    get: function() { return 'mouse'; },
-                    configurable: true
-                });
-            }, { capture: true });
-        });
-    })();
-  """;
-
   Future<bool> _onWillPop() async {
     if (await webViewController?.canGoBack() ?? false) {
       webViewController?.goBack();
@@ -89,32 +69,41 @@ class _WebViewScreenState extends State<WebViewScreen> {
     return WillPopScope(
       onWillPop: _onWillPop,
       child: Scaffold(
+        appBar: AppBar(
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Image.asset('assets/logo.png', height: 32),
+              const SizedBox(width: 8),
+              const Text('Kumon App', style: TextStyle(fontSize: 16)),
+            ],
+          ),
+          actions: [
+            if (canGoBack)
+              IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => webViewController?.goBack(),
+              ),
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: () => webViewController?.reload(),
+            ),
+          ],
+        ),
         body: Stack(
           children: [
             InAppWebView(
               initialUrlRequest: URLRequest(
                 url: WebUri('https://kumonapp.digital.kumon.com/id/index.html'),
               ),
-              initialUserScripts: UnmodifiableListView<UserScript>([
-                UserScript(
-                  source: spoofInputJs,
-                  injectionTime: UserScriptInjectionTime.AT_DOCUMENT_START,
-                ),
-              ]),
               initialOptions: InAppWebViewGroupOptions(
                 crossPlatform: InAppWebViewOptions(
                   userAgent:
                       'Mozilla/5.0 (iPad; CPU OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1',
                   javaScriptEnabled: true,
                   mediaPlaybackRequiresUserGesture: false,
-                  disableVerticalScroll: false,
-                  preferredContentMode: UserPreferredContentMode.RECOMMENDED,
                 ),
-                android: AndroidInAppWebViewOptions(
-                  useHybridComposition: true,
-                  loadWithOverviewMode: true,
-                  useWideViewPort: true,
-                ),
+                android: AndroidInAppWebViewOptions(useHybridComposition: true),
                 ios: IOSInAppWebViewOptions(allowsInlineMediaPlayback: true),
               ),
               onWebViewCreated: (controller) {
